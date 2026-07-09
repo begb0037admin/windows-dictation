@@ -1,7 +1,20 @@
 # windows-dictation — Living Handover Document
 
-**Last updated:** 2026-07-09 — Windows fully confirmed end-to-end with the new UI; two live-caption latency fixes along the way
-**Status:** Steps 1–4 + the window/live-caption rework all confirmed working on Windows, including a real paste into Notepad. Mac untested since the rework. Also flagged: Kevin wants to eventually package this for colleagues (see below) — deferred until the app itself is stable on both platforms.
+**Last updated:** 2026-07-09 — Both Windows and Mac fully confirmed end-to-end with the reworked UI
+**Status:** Steps 1–4 + the window/live-caption rework confirmed working on **both platforms**, including real paste into a target app on each. Core MVP is functionally complete and stable. Outstanding: Step 5 (run on login), the parked "Transcribe File" upload feature, and packaging/distribution to colleagues (deferred, see below).
+
+---
+
+## Session 2026-07-09 (continued) — Mac confirmed on the reworked app
+
+Same test as Windows: window opened correctly, live transcript displayed and matched speech, and the cleaned-up (or fallback) text pasted correctly into a real target app on Mac. Only needed `pip3.14 install -r requirements.txt` to pick up the two new dependencies (`pyperclip`, `pyautogui`) added for Step 4.
+
+**Both platforms are now fully confirmed on the current app.** This is a good checkpoint — MVP Steps 1–4 plus the UI rework are done and working, not just built.
+
+**Still outstanding, not yet started:**
+- Step 5 — run on login (optional toggle)
+- Parked "Transcribe File" upload feature (scoped earlier this session — pick an audio file, same transcribe→cleanup pipeline, output to clipboard + on-screen + `.txt` file, simple tkinter window)
+- Packaging/distribution to colleagues — deferred pending two open questions (Ollama can't be bundled; no GPU-absent fallback exists yet). See previous session note for full detail.
 
 ---
 

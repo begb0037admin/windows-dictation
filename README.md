@@ -36,8 +36,8 @@ MVP build in progress — building `docs/BUILD_BRIEF.md` §4 checklist in order,
 - [x] **Step 1** — Push-to-talk hotkey (Right Ctrl / Right Option) triggers recording start/stop; audio captured to memory. Cross-platform via `pynput`. **Confirmed working on both Windows (7.75s capture) and Mac (19.79s capture).**
 - [x] **Step 2** — Transcribe: `faster-whisper` + CUDA on Windows, `mlx-whisper` on Mac. **Confirmed working on both platforms** (CUDA runtime fix on Windows; `mlx-community/whisper-small-mlx` repo id verified correct on Mac).
 - [x] **Step 3** — Clean up the transcript via a local Ollama model (`llama3.2:3b`), strips fillers/fixes grammar while preserving meaning. **Confirmed working on both platforms** — Ollama installed separately per machine. Fixed a real prompt bug along the way where the model responded conversationally to request-like transcripts instead of editing them.
-- [x] **Step 4** — Paste cleaned text at cursor via clipboard (`pyperclip` + `pyautogui`, `Ctrl+V` / `Cmd+V`); original clipboard contents restored afterward. **Built, not yet tested against real apps** — needs a test in both the Teams desktop app and Teams-in-browser per `docs/BUILD_BRIEF.md` §6, and on Mac.
-- [x] **UI rework** — No system tray; a normal always-visible app window (tkinter) with status + a live-updating partial transcript while you speak. See `docs/BUILD_BRIEF.md` §11. **Built, not yet tested.**
+- [x] **Step 4** — Paste cleaned text at cursor via clipboard (`pyperclip` + `pyautogui`, `Ctrl+V` / `Cmd+V`); original clipboard contents restored afterward. **Confirmed working on both platforms.** Still to verify: real Teams desktop/browser test per `docs/BUILD_BRIEF.md` §6 (tested so far in Notepad/TextEdit).
+- [x] **UI rework** — No system tray; a normal always-visible app window (tkinter) with status + a live-updating partial transcript while you speak (chunk-and-finalize so earlier words never disappear). See `docs/BUILD_BRIEF.md` §11. **Confirmed working end-to-end on both platforms.**
 - [ ] Step 5 — Run on login (optional toggle)
 - [ ] *(parked, scoped)* — "Transcribe File" upload feature
 
