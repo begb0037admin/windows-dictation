@@ -92,14 +92,23 @@ def audio_callback(indata, frame_count, time_info, status):
 
 
 PARTIAL_INTERVAL_SECONDS = 0.8
-PARTIAL_WINDOW_SECONDS = 5
+CHUNK_SECONDS = 5
 
 
 def partial_transcription_loop(stop_event):
-    """While recording, periodically transcribe a bounded rolling window of
-    the most recent audio and show it in the window — pure visual feedback,
-    never pasted. Deliberately bounded (not the whole growing recording) so
-    each call stays fast regardless of how long the recording runs."""
+    """While recording, show a live-updating transcript that never loses
+    earlier words: audio is split into ~5s chunks; once a chunk is that
+    long it's "finalized" (transcribed once, appended permanently to
+    finalized_text, never re-transcribed again) while the current
+    in-progress chunk keeps re-transcribing every ~0.8s for the live feel.
+    This keeps each call bounded to ~5s of audio — fast regardless of how
+    long the whole recording runs — while still showing the full transcript
+    built up so far. Pure visual feedback, never pasted; the final paste
+    re-transcribes the complete recording in one shot after release for
+    maximum accuracy."""
+    finalized_text = ""
+    chunk_start = 0
+
     while not stop_event.wait(PARTIAL_INTERVAL_SECONDS):
         with state_lock:
             if not recording:
@@ -108,17 +117,22 @@ def partial_transcription_loop(stop_event):
         if not snapshot:
             continue
         audio_so_far = np.concatenate(snapshot, axis=0)
-        window_samples = int(PARTIAL_WINDOW_SECONDS * SAMPLE_RATE)
-        audio_window = audio_so_far[-window_samples:]
-        if len(audio_window) < SAMPLE_RATE * 0.5:
+        chunk_audio = audio_so_far[chunk_start:]
+        if len(chunk_audio) < SAMPLE_RATE * 0.5:
             continue
         try:
             with transcribe_lock:
-                partial_text = transcribe(audio_window, SAMPLE_RATE, config["whisper"])
+                partial_text = transcribe(chunk_audio, SAMPLE_RATE, config["whisper"])
         except Exception:
             continue
-        if partial_text:
-            set_text(partial_text)
+
+        display_text = f"{finalized_text} {partial_text}".strip()
+        if display_text:
+            set_text(display_text)
+
+        if len(chunk_audio) >= CHUNK_SECONDS * SAMPLE_RATE:
+            finalized_text = display_text
+            chunk_start = len(audio_so_far)
 
 
 def start_recording():
