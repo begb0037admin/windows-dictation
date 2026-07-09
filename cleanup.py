@@ -51,7 +51,7 @@ def cleanup(text: str, cleanup_config: dict) -> str:
     )
 
     try:
-        with urllib.request.urlopen(request, timeout=30) as response:
+        with urllib.request.urlopen(request, timeout=60) as response:
             result = json.loads(response.read())
     except urllib.error.URLError as exc:
         raise RuntimeError(
