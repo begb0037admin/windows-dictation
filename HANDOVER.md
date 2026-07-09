@@ -15,7 +15,19 @@
 
 `requirements.txt` updated with platform markers: `faster-whisper; sys_platform == "win32"` and `mlx-whisper; sys_platform == "darwin"`.
 
-**Next action:** Kevin runs `pip install -r requirements.txt` (picks up the new whisper package) then `python main.py` on **both** machines, holds the hotkey, speaks a sentence, and reports the console output — including whatever happens during the first-run model download (expect a progress bar; could take a few minutes for a few hundred MB to a couple GB). Once both are confirmed, Step 3 (Ollama cleanup pass) gets built.
+**Windows Step 2 confirmed working** (after one more environment fix): `faster-whisper` needs the CUDA 12 runtime libraries (cuBLAS + cuDNN) — having the NVIDIA driver alone isn't enough, and the full CUDA Toolkit installer is multi-GB overkill. Fixed by installing the runtime as pip packages instead:
+```
+pip install nvidia-cublas-cu12 nvidia-cudnn-cu12
+```
+then adding their `bin` folders to the Windows user PATH (via System Properties → Environment Variables → User variables → Path):
+- `C:\Users\admin\AppData\Roaming\Python\Python314\site-packages\nvidia\cublas\bin`
+- `C:\Users\admin\AppData\Roaming\Python\Python314\site-packages\nvidia\cudnn\bin`
+
+Confirmed persistent across a fresh PowerShell window (no `$env:PATH` override needed). Real transcript came back accurate for an 11.83s recording.
+
+**Not yet done:** Mac side of Step 2 (mlx-whisper) hasn't been tested — still pending, including verifying the `mlx-community/whisper-small-mlx` repo id is actually correct.
+
+**Workflow note (2026-07-09):** Kevin flagged that relaying every test through copy-pasted terminal output is inefficient — correct. This cloud session has no direct access to either of Kevin's machines. Recommended he install Claude Code locally on the Windows machine (matches `AGENT_MODEL.md` Section 1, which already documents "Admin machine (Kevin): Runs Claude Code (primary agent)" as the intended model across his other repos) so an agent can drive the remaining steps directly instead of through manual relay. Awaiting Kevin's decision on this before continuing Step 3.
 
 ---
 
