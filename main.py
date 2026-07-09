@@ -119,6 +119,7 @@ def stop_recording():
 
 
 def on_press(key):
+    print(f"[debug] key pressed: {key!r} (looking for {HOTKEY!r})")
     if key == HOTKEY:
         start_recording()
 
