@@ -1,7 +1,22 @@
 # windows-dictation — Living Handover Document
 
-**Last updated:** 2026-07-09 (Kevin session) — scope widened to cross-platform (Windows + Mac); Step 1 rebuilt accordingly
-**Status:** MVP Step 1 (hotkey + recording) rebuilt cross-platform, awaiting Kevin's test on both machines
+**Last updated:** 2026-07-09 (Kevin session) — Step 1 confirmed working on Windows
+**Status:** MVP Step 1 (hotkey + recording) confirmed working on Windows. Awaiting Mac test before Step 2 (transcription) is built.
+
+---
+
+## Session 2026-07-09 (continued) — Step 1 confirmed on Windows
+
+**Result:** Kevin ran `main.py` on the Windows machine (RTX 3070), held Right Ctrl for ~8 seconds while speaking, released — console reported `123968 samples, 7.75s captured at 16000Hz`. Recording start/stop and audio capture to memory both work correctly.
+
+**Debugging along the way (kept here for reference, not because it's still relevant):**
+- First confusion was environment/working-directory related (running `python main.py` from `C:\Users\admin` instead of the cloned repo folder) — resolved.
+- Added a temporary debug print on every keypress to check pynput was receiving events at all and to identify the exact key name for "Right Ctrl" on Kevin's keyboard. Confirmed `<Key.ctrl_r: <163>>` maps correctly and Left Ctrl (`ctrl_l`) is correctly ignored.
+- Windows fires repeated key-down (auto-repeat) events for a physically held key — this looked like a runaway bug the first time but is normal OS behaviour; `start_recording()`/`stop_recording()` already guard against duplicate calls, so it was cosmetic only (spammed the debug log, nothing else).
+- Debug logging removed once confirmed working — `main.py` is back to clean Step 1 code.
+- Delivered `run-dictation.bat` (via SendUserFile, not committed to the repo — it's a personal convenience script, not part of the app) so Kevin can `cd` + `git pull` + `python main.py` with one double-click instead of typing commands each time.
+
+**Next action:** Kevin runs the same test on the Mac (Apple Silicon) — hold **Right Option**, confirm the same kind of console output. Once both platforms are confirmed, Step 2 (transcription — faster-whisper on Windows, mlx-whisper on Mac) gets built.
 
 ---
 
