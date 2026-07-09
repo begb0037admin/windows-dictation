@@ -123,4 +123,12 @@ After Steps 1–4 were built and confirmed working (tray icon + background utili
 - This actually **simplifies** a real cross-platform risk that would otherwise exist: a persistent tray icon (needs the main thread on macOS) and a tkinter window (also wants the main thread on macOS, being a Cocoa-backed Tk build) would compete for the same thread. Dropping the tray icon removes that conflict — tkinter now cleanly owns the main thread on both platforms.
 - Re-transcribing the whole growing buffer every ~1.5s (rather than true incremental/streaming ASR) is a deliberate simplicity-over-efficiency tradeoff — fine for short chat-length dictations on the target hardware (RTX 3070 / Apple Silicon), avoids the much larger complexity of real streaming transcription.
 
-**Also discussed, parked for later:** a "Transcribe File" feature (upload an existing audio file, run it through the same transcribe → cleanup pipeline, copy to clipboard + show in a window + save as `.txt`) — scoped but not yet built, lower priority than the live-caption window right now.
+**"Transcribe File" feature — scoped then built (2026-07-09):** upload an existing audio file, run it through the same transcribe → cleanup pipeline, output to all three of: clipboard, on-screen display, and a `.txt` file saved next to the audio file. Added as a button in the same window (no separate process needed — with no tray icon, there's only ever one tkinter root, so the earlier "give it its own process to dodge a main-thread conflict" plan wasn't necessary). `transcribe()` was extended to accept a file path directly, handed straight to the whisper backend for its own decoding — faster-whisper via its bundled PyAV library (no extra install), mlx-whisper by shelling out to a system `ffmpeg` binary, **which is a new Mac-only prerequisite** (`brew install ffmpeg`) that live dictation doesn't need, since live audio already arrives as a ready-made array.
+
+## 12. Amendment — distribution to colleagues, raised 2026-07-09
+
+Kevin wants to give this to colleagues, which needs an installer for both platforms (already anticipated in §5's stretch goals). Two things a real installer forces a decision on, not yet resolved:
+1. **Ollama can't be bundled** — it's a separate background service each user installs and pulls a model for themselves.
+2. **GPU assumption doesn't hold for other users** — `config.json`'s Windows `whisper` section hardcodes `device: cuda`; colleagues without an NVIDIA GPU need a CPU fallback that doesn't exist yet.
+
+Deferred until the app itself is fully stable and tested (packaging a moving target means repackaging repeatedly).

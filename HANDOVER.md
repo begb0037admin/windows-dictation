@@ -1,7 +1,23 @@
 # windows-dictation — Living Handover Document
 
-**Last updated:** 2026-07-09 — Both Windows and Mac fully confirmed end-to-end with the reworked UI
-**Status:** Steps 1–4 + the window/live-caption rework confirmed working on **both platforms**, including real paste into a target app on each. Core MVP is functionally complete and stable. Outstanding: Step 5 (run on login), the parked "Transcribe File" upload feature, and packaging/distribution to colleagues (deferred, see below).
+**Last updated:** 2026-07-09 — "Transcribe File" feature built
+**Status:** Steps 1–4 + window/live-caption rework confirmed on both platforms. "Transcribe File" upload feature built (per Kevin's priority order: this before packaging), not yet tested on either platform. Outstanding: test Transcribe File, Step 5 (run on login), real Teams test, packaging (deferred).
+
+---
+
+## Session 2026-07-09 (continued) — "Transcribe File" built
+
+Kevin's priority order: Transcribe File first, then a packaging design conversation.
+
+**Built:** `transcribe.py`'s `transcribe()` now accepts either a numpy array (live dictation, unchanged) or a file path string/`Path` — for a path, it's handed straight to the whisper backend, which decodes it itself (faster-whisper via its bundled PyAV; mlx-whisper by shelling out to system `ffmpeg`, **a new Mac-only prerequisite** — `brew install ffmpeg` — that live dictation doesn't need).
+
+`main.py` gained a "Transcribe File..." button in the same window (no separate process needed for this, unlike the original plan sketched before the tray was dropped — with no tray icon there's only ever one tkinter root, so the main-thread-conflict problem that motivated a separate process doesn't exist here). Clicking it opens a file picker, then runs transcribe → cleanup on a background thread, and on completion: copies the result to the clipboard, displays it in the window, and saves a `.txt` file next to the audio file. Guards added so it can't run concurrently with a live dictation (disabled while recording, and vice versa) — not a hard technical requirement (the `transcribe_lock` already serializes actual model calls safely) but avoids the two flows visually fighting over the same status label/text box.
+
+**Not yet tested at all.** Needs a test on both platforms:
+1. Windows: pick an audio file, confirm transcribe → cleanup → clipboard + on-screen + `.txt` file all happen correctly.
+2. Mac: same, but first confirm/install `ffmpeg` via `brew install ffmpeg` — if that's missing, mlx-whisper's file decoding will fail with an unhelpful error.
+
+**Next action:** test Transcribe File on both platforms, then move to the packaging conversation Kevin asked for (GPU-fallback design + how colleagues get Ollama set up).
 
 ---
 

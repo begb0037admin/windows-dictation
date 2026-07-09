@@ -5,7 +5,17 @@ Cross-platform backend: faster-whisper + CUDA on Windows, mlx-whisper on Mac.
 The model is loaded once and cached for the life of the process. First call
 downloads model weights (hundreds of MB to a few GB) via huggingface_hub,
 which prints its own progress bar — nothing to hang silently here.
+
+`transcribe()` accepts either a mono float32 numpy array (live dictation —
+already the right sample rate) or a file path string/Path (the "Transcribe
+File" feature — an arbitrary audio file). For a file path, the path is
+handed straight to the whisper backend, which decodes it itself:
+faster-whisper via the bundled PyAV library (no extra install), mlx-whisper
+by shelling out to a system `ffmpeg` (Mac only — needs `brew install
+ffmpeg`, a prerequisite live dictation doesn't have).
 """
+
+from pathlib import Path
 
 import numpy as np
 
@@ -57,19 +67,24 @@ def _get_model(whisper_config):
     return _model
 
 
-def transcribe(audio: np.ndarray, sample_rate: int, whisper_config: dict) -> str:
-    """Transcribe a mono float32 numpy array at sample_rate to text."""
+def transcribe(audio, sample_rate: int, whisper_config: dict) -> str:
+    """Transcribe to text. `audio` is either a mono float32 numpy array
+    (live dictation) or a file path string/Path (an arbitrary audio file)."""
     model = _get_model(whisper_config)
-    audio = audio.reshape(-1).astype(np.float32)
+
+    if isinstance(audio, (str, Path)):
+        audio_input = str(audio)
+    else:
+        audio_input = audio.reshape(-1).astype(np.float32)
 
     if _backend == "faster-whisper":
-        segments, _info = model.transcribe(audio, language="en")
+        segments, _info = model.transcribe(audio_input, language="en")
         return " ".join(segment.text.strip() for segment in segments).strip()
 
     if _backend == "mlx-whisper":
         import mlx_whisper
 
-        result = mlx_whisper.transcribe(audio, path_or_hf_repo=model)
+        result = mlx_whisper.transcribe(audio_input, path_or_hf_repo=model)
         return result["text"].strip()
 
     raise ValueError(f"Unknown whisper backend '{_backend}'")

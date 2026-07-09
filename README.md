@@ -38,8 +38,9 @@ MVP build in progress — building `docs/BUILD_BRIEF.md` §4 checklist in order,
 - [x] **Step 3** — Clean up the transcript via a local Ollama model (`llama3.2:3b`), strips fillers/fixes grammar while preserving meaning. **Confirmed working on both platforms** — Ollama installed separately per machine. Fixed a real prompt bug along the way where the model responded conversationally to request-like transcripts instead of editing them.
 - [x] **Step 4** — Paste cleaned text at cursor via clipboard (`pyperclip` + `pyautogui`, `Ctrl+V` / `Cmd+V`); original clipboard contents restored afterward. **Confirmed working on both platforms.** Still to verify: real Teams desktop/browser test per `docs/BUILD_BRIEF.md` §6 (tested so far in Notepad/TextEdit).
 - [x] **UI rework** — No system tray; a normal always-visible app window (tkinter) with status + a live-updating partial transcript while you speak (chunk-and-finalize so earlier words never disappear). See `docs/BUILD_BRIEF.md` §11. **Confirmed working end-to-end on both platforms.**
+- [x] **"Transcribe File"** — Button in the app window; pick an audio file, runs the same transcribe → cleanup pipeline, output goes to clipboard + on-screen display + a `.txt` file saved next to the audio file. **Built, not yet tested.** Mac needs `ffmpeg` installed (`brew install ffmpeg`) for this specifically — live dictation doesn't need it.
 - [ ] Step 5 — Run on login (optional toggle)
-- [ ] *(parked, scoped)* — "Transcribe File" upload feature
+- [ ] Packaging/installer for colleagues — deferred; needs GPU-fallback + Ollama-distribution decisions first (see `docs/BUILD_BRIEF.md` §12)
 
 ### Running
 
@@ -55,6 +56,8 @@ A normal app window opens (not a system tray icon) showing status and a live tra
 **Mac:** grant **Accessibility** permission to Terminal (or your Python interpreter) under System Settings → Privacy & Security → Accessibility — without it, `pynput` silently receives no key events at all. If the mic can't be opened, grant Microphone access in the same Privacy & Security pane.
 
 Hotkey (per platform), sample rate, and whisper backend are all configurable in `config.json`.
+
+**Transcribe File:** click the "Transcribe File..." button in the window to pick an existing audio file instead of recording live. Result is copied to the clipboard, shown in the window, and saved as a `.txt` file next to the audio file. On Mac, this needs `ffmpeg` installed separately (`brew install ffmpeg`) — live dictation doesn't need it, only file transcription does.
 
 ## Repo structure
 

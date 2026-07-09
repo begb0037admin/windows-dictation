@@ -24,8 +24,11 @@ import platform
 import sys
 import threading
 import tkinter as tk
+from pathlib import Path
+from tkinter import filedialog, messagebox
 
 import numpy as np
+import pyperclip
 import sounddevice as sd
 from pynput import keyboard
 
@@ -33,6 +36,11 @@ from cleanup import cleanup
 from config import load_config
 from inject import inject
 from transcribe import transcribe
+
+AUDIO_FILETYPES = [
+    ("Audio files", "*.wav *.mp3 *.m4a *.flac *.ogg *.aac"),
+    ("All files", "*.*"),
+]
 
 config = load_config()
 SAMPLE_RATE = config["sample_rate"]
@@ -61,10 +69,12 @@ recording = False
 frames = []
 stream = None
 partial_stop_event = None
+file_processing = False
 
 root = None
 status_label = None
 text_box = None
+file_button = None
 
 
 def set_status(text):
@@ -138,10 +148,12 @@ def partial_transcription_loop(stop_event):
 def start_recording():
     global recording, frames, stream, partial_stop_event
     with state_lock:
-        if recording:
+        if recording or file_processing:
             return
         recording = True
         frames = []
+    if root:
+        root.after(0, lambda: file_button.config(state="disabled"))
     set_status("Listening...")
     set_text("")
     print("[rec] recording started")
@@ -215,6 +227,71 @@ def stop_recording():
         print(f"[inject] failed: {exc}", file=sys.stderr)
         set_status(f"Paste failed: {exc}")
 
+    if root:
+        root.after(0, lambda: file_button.config(state="normal"))
+
+
+def choose_audio_file():
+    """Transcribe File feature: pick an existing audio file and run it
+    through the same transcribe -> cleanup pipeline as live dictation.
+    Result is copied to the clipboard, shown in the window, and saved as a
+    .txt file next to the audio file. Does not paste anywhere."""
+    if recording or file_processing:
+        return
+    path = filedialog.askopenfilename(
+        title="Choose an audio file to transcribe", filetypes=AUDIO_FILETYPES
+    )
+    if not path:
+        return
+
+    global file_processing
+    file_processing = True
+    file_button.config(state="disabled")
+    set_status(f"Transcribing {Path(path).name}...")
+    set_text("")
+    threading.Thread(target=_process_audio_file, args=(path,), daemon=True).start()
+
+
+def _process_audio_file(path):
+    global file_processing
+    try:
+        with transcribe_lock:
+            text = transcribe(path, SAMPLE_RATE, config["whisper"])
+        print(f"[transcribe:file] result: {text!r}")
+    except Exception as exc:
+        print(f"[transcribe:file] failed: {exc}", file=sys.stderr)
+        set_status(f"Transcription failed: {exc}")
+        if root:
+            root.after(0, lambda: messagebox.showerror("Transcription failed", str(exc)))
+        file_processing = False
+        if root:
+            root.after(0, lambda: file_button.config(state="normal"))
+        return
+
+    set_status("Cleaning up...")
+    try:
+        cleaned = cleanup(text, config["cleanup"])
+        print(f"[cleanup:file] result: {cleaned!r}")
+    except Exception as exc:
+        print(f"[cleanup:file] failed: {exc}", file=sys.stderr)
+        print("[cleanup:file] falling back to the raw transcript")
+        cleaned = text
+
+    txt_path = Path(path).with_suffix(".txt")
+    try:
+        txt_path.write_text(cleaned, encoding="utf-8")
+        save_note = f"Saved to {txt_path.name}."
+    except Exception as exc:
+        save_note = f"Could not save .txt file: {exc}"
+
+    pyperclip.copy(cleaned)
+    set_text(cleaned)
+    set_status(f"Copied to clipboard. {save_note}")
+
+    file_processing = False
+    if root:
+        root.after(0, lambda: file_button.config(state="normal"))
+
 
 def on_press(key):
     if key == HOTKEY:
@@ -273,13 +350,19 @@ def main():
 
     run_hotkey_listener()
 
+    global file_button
     root = tk.Tk()
     root.title("Dictation")
-    root.geometry("480x280")
+    root.geometry("480x320")
     root.protocol("WM_DELETE_WINDOW", on_close)
 
     status_label = tk.Label(root, text=IDLE_STATUS, font=("Segoe UI", 12))
     status_label.pack(pady=(16, 8))
+
+    file_button = tk.Button(
+        root, text="Transcribe File...", command=choose_audio_file
+    )
+    file_button.pack(pady=(0, 8))
 
     text_box = tk.Text(root, wrap="word", height=10, state="disabled")
     text_box.pack(fill="both", expand=True, padx=12, pady=12)
