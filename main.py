@@ -1,12 +1,10 @@
 """
-Step 1 of the MVP: push-to-talk hotkey + audio capture to memory + tray icon.
-Cross-platform (Windows + macOS) via pynput and sounddevice.
+Step 1 + 2 of the MVP: push-to-talk hotkey + audio capture + transcription.
+Cross-platform (Windows + macOS) via pynput, sounddevice, and transcribe.py.
 
-No transcription, cleanup, or text injection yet — those are later steps.
-Run this, hold the hotkey (Right Ctrl on Windows, Right Option on Mac by
-default), speak, release, and check the console for a line reporting how
-many samples/seconds were captured. Confirm that works before Step 2
-(transcription) is wired up.
+No cleanup or text injection yet — those are later steps. Hold the hotkey
+(Right Ctrl on Windows, Right Option on Mac by default), speak, release —
+the console prints the raw transcript. Nothing is cleaned up or pasted yet.
 
 macOS note: the hotkey listener needs Accessibility permission granted to
 whatever runs this script (Terminal, or your Python interpreter) under
@@ -25,6 +23,7 @@ from pystray import Icon, Menu, MenuItem
 from PIL import Image, ImageDraw
 
 from config import load_config
+from transcribe import transcribe
 
 config = load_config()
 SAMPLE_RATE = config["sample_rate"]
@@ -116,6 +115,13 @@ def stop_recording():
         f"[rec] recording stopped — {len(audio)} samples, "
         f"{duration_s:.2f}s captured at {SAMPLE_RATE}Hz"
     )
+
+    print("[transcribe] transcribing...")
+    try:
+        text = transcribe(audio, SAMPLE_RATE, config["whisper"])
+        print(f"[transcribe] result: {text!r}")
+    except Exception as exc:
+        print(f"[transcribe] failed: {exc}", file=sys.stderr)
 
 
 def on_press(key):

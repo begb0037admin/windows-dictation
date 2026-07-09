@@ -1,7 +1,21 @@
 # windows-dictation — Living Handover Document
 
-**Last updated:** 2026-07-09 (Kevin session) — Step 1 confirmed working on Windows
-**Status:** MVP Step 1 (hotkey + recording) confirmed working on Windows. Awaiting Mac test before Step 2 (transcription) is built.
+**Last updated:** 2026-07-09 (Kevin session) — Step 1 confirmed on both platforms; Step 2 (transcription) built, awaiting test
+**Status:** Step 1 (hotkey + recording) confirmed working on Windows (7.75s capture) and Mac (19.79s capture). Step 2 (transcription) built and pushed — awaiting Kevin's test on both machines.
+
+---
+
+## Session 2026-07-09 (continued) — Step 1 confirmed on Mac; Step 2 built
+
+**Mac setup hit a real environment issue, resolved:** Kevin's Mac shipped with the old Apple Command Line Tools Python (3.9.6), which has no prebuilt wheel for `pyobjc-core` (a `pynput` dependency on macOS) and failed compiling it from source — a known incompatibility (that pyobjc release is flagged "yanked" for wrongly claiming Python 3.9 support). Fix: installed Python 3.14.6 from python.org, which has prebuilt wheels for everything. `pip3.14 install -r requirements.txt` then succeeded cleanly.
+
+**Step 1 result on Mac:** held Right Option, console reported `316584 samples, 19.79s captured at 16000Hz`. Confirmed working on both platforms now.
+
+**Step 2 built:** `transcribe.py` — lazy-loads and caches the model on first call. `faster-whisper` (`small`, CUDA, fp16) on Windows; `mlx-whisper` on Mac, repo id `mlx-community/whisper-small-mlx` (set in `config.json`'s Mac `whisper` section, **not yet verified against the actual Hugging Face repo** — if the first run 404s trying to download, this needs correcting to whatever the real repo slug is). `main.py` now calls `transcribe()` after every recording and prints the raw transcript — no cleanup, no injection yet.
+
+`requirements.txt` updated with platform markers: `faster-whisper; sys_platform == "win32"` and `mlx-whisper; sys_platform == "darwin"`.
+
+**Next action:** Kevin runs `pip install -r requirements.txt` (picks up the new whisper package) then `python main.py` on **both** machines, holds the hotkey, speaks a sentence, and reports the console output — including whatever happens during the first-run model download (expect a progress bar; could take a few minutes for a few hundred MB to a couple GB). Once both are confirmed, Step 3 (Ollama cleanup pass) gets built.
 
 ---
 

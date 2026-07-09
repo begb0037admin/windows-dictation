@@ -22,6 +22,7 @@ DEFAULTS = {
         "darwin": {
             "backend": "mlx-whisper",
             "model_size": "small",
+            "hf_repo": "mlx-community/whisper-small-mlx",
         },
     },
     "cleanup": {

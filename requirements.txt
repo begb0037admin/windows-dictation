@@ -3,3 +3,5 @@ numpy
 pynput
 pystray
 Pillow
+faster-whisper; sys_platform == "win32"
+mlx-whisper; sys_platform == "darwin"
