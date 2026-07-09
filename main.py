@@ -91,10 +91,16 @@ def audio_callback(indata, frame_count, time_info, status):
             frames.append(indata.copy())
 
 
+PARTIAL_INTERVAL_SECONDS = 0.8
+PARTIAL_WINDOW_SECONDS = 5
+
+
 def partial_transcription_loop(stop_event):
-    """While recording, periodically re-transcribe everything captured so
-    far and show it in the window — pure visual feedback, never pasted."""
-    while not stop_event.wait(1.5):
+    """While recording, periodically transcribe a bounded rolling window of
+    the most recent audio and show it in the window — pure visual feedback,
+    never pasted. Deliberately bounded (not the whole growing recording) so
+    each call stays fast regardless of how long the recording runs."""
+    while not stop_event.wait(PARTIAL_INTERVAL_SECONDS):
         with state_lock:
             if not recording:
                 return
@@ -102,11 +108,13 @@ def partial_transcription_loop(stop_event):
         if not snapshot:
             continue
         audio_so_far = np.concatenate(snapshot, axis=0)
-        if len(audio_so_far) < SAMPLE_RATE * 0.5:
+        window_samples = int(PARTIAL_WINDOW_SECONDS * SAMPLE_RATE)
+        audio_window = audio_so_far[-window_samples:]
+        if len(audio_window) < SAMPLE_RATE * 0.5:
             continue
         try:
             with transcribe_lock:
-                partial_text = transcribe(audio_so_far, SAMPLE_RATE, config["whisper"])
+                partial_text = transcribe(audio_window, SAMPLE_RATE, config["whisper"])
         except Exception:
             continue
         if partial_text:
