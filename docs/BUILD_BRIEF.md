@@ -37,10 +37,10 @@ Language: **Python**. Fast to scaffold, all the above libraries are mature and w
 
 ## 4. MVP scope (build this first)
 
-- [ ] Push-to-talk hotkey triggers recording start/stop
-- [ ] Record audio to memory while key is held
-- [ ] Transcribe with faster-whisper (`base` model to start)
-- [ ] Clean up transcript with a local Ollama model (strip filler words, fix grammar, preserve meaning — a short system prompt is enough)
+- [x] Push-to-talk hotkey triggers recording start/stop
+- [x] Record audio to memory while key is held
+- [x] Transcribe with faster-whisper (`base` model to start)
+- [x] Clean up transcript with a local Ollama model (strip filler words, fix grammar, preserve meaning — a short system prompt is enough)
 - [ ] Paste cleaned text into the focused window via clipboard
 - [ ] Tray icon with idle/recording/processing states and a quit option
 - [ ] Runs on Windows 11, starts on login (optional toggle)

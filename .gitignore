@@ -1,0 +1,5 @@
+__pycache__/
+*.pyc
+
+# personal convenience script, delivered via SendUserFile, not part of the app
+rundictation.bat

@@ -1,10 +1,11 @@
 """
-Step 1 + 2 of the MVP: push-to-talk hotkey + audio capture + transcription.
-Cross-platform (Windows + macOS) via pynput, sounddevice, and transcribe.py.
+Step 1 + 2 + 3 of the MVP: push-to-talk hotkey + audio capture + transcription
++ Ollama cleanup pass. Cross-platform (Windows + macOS) via pynput,
+sounddevice, transcribe.py, and cleanup.py.
 
-No cleanup or text injection yet — those are later steps. Hold the hotkey
-(Right Ctrl on Windows, Right Option on Mac by default), speak, release —
-the console prints the raw transcript. Nothing is cleaned up or pasted yet.
+No text injection yet — that's the next step. Hold the hotkey (Right Ctrl on
+Windows, Right Option on Mac by default), speak, release — the console
+prints the raw transcript and the cleaned-up version. Nothing is pasted yet.
 
 macOS note: the hotkey listener needs Accessibility permission granted to
 whatever runs this script (Terminal, or your Python interpreter) under
@@ -22,6 +23,7 @@ from pynput import keyboard
 from pystray import Icon, Menu, MenuItem
 from PIL import Image, ImageDraw
 
+from cleanup import cleanup
 from config import load_config
 from transcribe import transcribe
 
@@ -122,6 +124,14 @@ def stop_recording():
         print(f"[transcribe] result: {text!r}")
     except Exception as exc:
         print(f"[transcribe] failed: {exc}", file=sys.stderr)
+        return
+
+    print("[cleanup] cleaning up transcript...")
+    try:
+        cleaned = cleanup(text, config["cleanup"])
+        print(f"[cleanup] result: {cleaned!r}")
+    except Exception as exc:
+        print(f"[cleanup] failed: {exc}", file=sys.stderr)
 
 
 def on_press(key):
