@@ -33,20 +33,22 @@ Local-first: free, private, no API keys. See `docs/BUILD_BRIEF.md` §8 for the o
 
 MVP build in progress — building `docs/BUILD_BRIEF.md` §4 checklist in order, testing each step on both machines before moving to the next.
 
-- [x] **Step 1** — Push-to-talk hotkey (Right Ctrl / Right Option) triggers recording start/stop; audio captured to memory; tray icon (grey idle / red recording). Cross-platform via `pynput`. **Confirmed working on both Windows (7.75s capture) and Mac (19.79s capture).**
+- [x] **Step 1** — Push-to-talk hotkey (Right Ctrl / Right Option) triggers recording start/stop; audio captured to memory. Cross-platform via `pynput`. **Confirmed working on both Windows (7.75s capture) and Mac (19.79s capture).**
 - [x] **Step 2** — Transcribe: `faster-whisper` + CUDA on Windows, `mlx-whisper` on Mac. **Confirmed working on both platforms** (CUDA runtime fix on Windows; `mlx-community/whisper-small-mlx` repo id verified correct on Mac).
 - [x] **Step 3** — Clean up the transcript via a local Ollama model (`llama3.2:3b`), strips fillers/fixes grammar while preserving meaning. **Confirmed working on both platforms** — Ollama installed separately per machine. Fixed a real prompt bug along the way where the model responded conversationally to request-like transcripts instead of editing them.
-- [x] **Step 4** — Paste cleaned text at cursor via clipboard (`pyperclip` + `pyautogui`, `Ctrl+V` / `Cmd+V`); original clipboard contents restored afterward. **Built, not yet tested** — needs a real test in both the Teams desktop app and Teams-in-browser per `docs/BUILD_BRIEF.md` §6, and on both platforms.
+- [x] **Step 4** — Paste cleaned text at cursor via clipboard (`pyperclip` + `pyautogui`, `Ctrl+V` / `Cmd+V`); original clipboard contents restored afterward. **Built, not yet tested against real apps** — needs a test in both the Teams desktop app and Teams-in-browser per `docs/BUILD_BRIEF.md` §6, and on Mac.
+- [x] **UI rework** — No system tray; a normal always-visible app window (tkinter) with status + a live-updating partial transcript while you speak. See `docs/BUILD_BRIEF.md` §11. **Built, not yet tested.**
 - [ ] Step 5 — Run on login (optional toggle)
+- [ ] *(parked, scoped)* — "Transcribe File" upload feature
 
-### Running Step 1
+### Running
 
 ```
 pip install -r requirements.txt
 python main.py
 ```
 
-Hold the hotkey (**Right Ctrl** on Windows, **Right Option** on Mac by default), speak, release. The console prints how many seconds of audio were captured — nothing is transcribed yet. A tray icon/menu-bar icon shows idle (grey) / recording (red) state; right-click (Windows) or click (Mac) to Quit.
+A normal app window opens (not a system tray icon) showing status and a live transcript. Click into any other text box (Teams, Notepad, a browser), hold the hotkey (**Right Ctrl** on Windows, **Right Option** on Mac by default), speak, release — the cleaned-up text is pasted at your cursor there. This app's own window just shows live status/feedback (Listening → Transcribing → Cleaning up → Pasting) and never receives the pasted text itself. Close the window to quit.
 
 **Windows:** global hotkey hooking usually requires running the terminal **as Administrator**. If the mic can't be opened, check Settings → Privacy & security → Microphone and allow desktop apps.
 
@@ -57,13 +59,13 @@ Hotkey (per platform), sample rate, and whisper backend are all configurable in 
 ## Repo structure
 
 ```
-main.py           # tray app entry point, hotkey listener, audio capture (Step 1 — done, cross-platform)
+main.py           # app window (tkinter), hotkey listener, audio capture, live partial transcript
 config.py         # loads config.json / defaults, resolves platform-keyed sections
 config.json
 requirements.txt
-transcribe.py     # faster-whisper / mlx-whisper wrapper (Step 2 — not yet built)
-cleanup.py        # Ollama call + de-um-ify/grammar prompt (Step 3 — not yet built)
-inject.py         # clipboard + paste simulation (Step 4 — not yet built)
+transcribe.py     # faster-whisper / mlx-whisper wrapper
+cleanup.py        # Ollama call + de-um-ify/grammar prompt
+inject.py         # clipboard + paste simulation
 docs/BUILD_BRIEF.md
 CLAUDE.md / AGENT_MODEL.md / CONSTITUTION.md / HANDOVER.md   # governance stack
 ```

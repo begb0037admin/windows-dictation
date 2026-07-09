@@ -107,3 +107,20 @@ Original brief scoped Windows only. Kevin confirmed after Step 1 was built that 
 | Config | Single `config.json` | **Platform-keyed sections** for hotkey and whisper backend (`windows` / `darwin`), auto-selected by `platform.system()` at load time, with a shared config layer for everything else (sample rate, Ollama settings, autostart). |
 
 **Still local-first, still no cloud dependency in the MVP** — this amendment is about running the same behaviour on two OSes, not about adding a server component.
+
+## 11. Amendment — normal app window, no system tray; live caption feedback, added 2026-07-09
+
+After Steps 1–4 were built and confirmed working (tray icon + background utility, hold→release→paste, no visible feedback while speaking), Kevin raised two changes:
+
+1. **No system tray utility — a normal, always-visible app window instead.** The original design (§2, §3) had this as a background tray icon with idle/recording states. Kevin wants a regular window (shown in the taskbar/dock, closable like any other app), not something hidden away.
+2. **Live feedback while speaking.** With the original hold→release→then-transcribe flow, the app gives zero visual feedback while the hotkey is held — it's just silent until release. Two options were considered:
+   - **(A) Type live, continuously-updating text directly into the focused app** (replicating Windows Voice Typing / Mac Dictation) — rejected as too fragile: it requires tracking exactly how much was typed and selecting/replacing it as more speech comes in, in whatever third-party app has focus, with real risk of corrupting text in Teams/etc.
+   - **(B) A live-updating partial transcript shown in this app's own window** while recording, with the actual paste into the focused app still happening once, cleanly, on release — chosen. Implemented as a background loop that re-transcribes everything captured so far every ~1.5s while the hotkey is held, purely for feedback; it never types anything itself.
+
+**Practical effect on architecture:**
+- `pystray` and `Pillow` (tray icon rendering) are dropped entirely.
+- `main.py` now creates a single `tkinter` window on the main thread — a status label (Idle / Listening / Transcribing / Cleaning up / Pasting) and a text box showing the live partial transcript, then the final transcript, then the cleaned-up version, in sequence. Closing the window quits the app.
+- This actually **simplifies** a real cross-platform risk that would otherwise exist: a persistent tray icon (needs the main thread on macOS) and a tkinter window (also wants the main thread on macOS, being a Cocoa-backed Tk build) would compete for the same thread. Dropping the tray icon removes that conflict — tkinter now cleanly owns the main thread on both platforms.
+- Re-transcribing the whole growing buffer every ~1.5s (rather than true incremental/streaming ASR) is a deliberate simplicity-over-efficiency tradeoff — fine for short chat-length dictations on the target hardware (RTX 3070 / Apple Silicon), avoids the much larger complexity of real streaming transcription.
+
+**Also discussed, parked for later:** a "Transcribe File" feature (upload an existing audio file, run it through the same transcribe → cleanup pipeline, copy to clipboard + show in a window + save as `.txt`) — scoped but not yet built, lower priority than the live-caption window right now.

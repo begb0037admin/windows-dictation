@@ -3,9 +3,14 @@ Full MVP pipeline: push-to-talk hotkey + audio capture + transcription +
 Ollama cleanup + clipboard paste injection. Cross-platform (Windows + macOS)
 via pynput, sounddevice, transcribe.py, cleanup.py, and inject.py.
 
+This is a normal, always-visible app window (not a system tray utility).
+The window shows live status and a live-updating partial transcript while
+you hold the hotkey, purely for feedback that it's hearing you — the real
+text only gets pasted into whatever app has focus once, cleanly, on
+release. Closing the window quits the app.
+
 Hold the hotkey (Right Ctrl on Windows, Right Option on Mac by default),
-speak, release — cleaned-up text is pasted at the cursor in whatever text
-box has focus.
+speak, release.
 
 macOS note: the hotkey listener AND the paste injection need Accessibility
 permission granted to whatever runs this script (Terminal, or your Python
@@ -14,15 +19,15 @@ Without it, pynput silently receives no key events, and pyautogui's paste
 keystroke silently does nothing.
 """
 
+import os
 import platform
 import sys
 import threading
+import tkinter as tk
 
 import numpy as np
 import sounddevice as sd
 from pynput import keyboard
-from pystray import Icon, Menu, MenuItem
-from PIL import Image, ImageDraw
 
 from cleanup import cleanup
 from config import load_config
@@ -47,23 +52,35 @@ def resolve_hotkey(name):
 
 
 HOTKEY = resolve_hotkey(HOTKEY_NAME)
+HOTKEY_DISPLAY = HOTKEY_NAME.replace("_r", " (right)").replace("_l", " (left)").replace("_", " ").title()
+IDLE_STATUS = f"Idle — hold {HOTKEY_DISPLAY} to record"
 
 state_lock = threading.Lock()
+transcribe_lock = threading.Lock()
 recording = False
 frames = []
 stream = None
-tray_icon = None
+partial_stop_event = None
+
+root = None
+status_label = None
+text_box = None
 
 
-def make_icon_image(color):
-    img = Image.new("RGBA", (64, 64), (0, 0, 0, 0))
-    draw = ImageDraw.Draw(img)
-    draw.ellipse((8, 8, 56, 56), fill=color)
-    return img
+def set_status(text):
+    if root:
+        root.after(0, lambda: status_label.config(text=text))
 
 
-ICON_IDLE = make_icon_image((90, 90, 90, 255))
-ICON_RECORDING = make_icon_image((220, 40, 40, 255))
+def set_text(text):
+    if root:
+        def _update():
+            text_box.config(state="normal")
+            text_box.delete("1.0", "end")
+            text_box.insert("1.0", text)
+            text_box.config(state="disabled")
+
+        root.after(0, _update)
 
 
 def audio_callback(indata, frame_count, time_info, status):
@@ -74,15 +91,37 @@ def audio_callback(indata, frame_count, time_info, status):
             frames.append(indata.copy())
 
 
+def partial_transcription_loop(stop_event):
+    """While recording, periodically re-transcribe everything captured so
+    far and show it in the window — pure visual feedback, never pasted."""
+    while not stop_event.wait(1.5):
+        with state_lock:
+            if not recording:
+                return
+            snapshot = list(frames)
+        if not snapshot:
+            continue
+        audio_so_far = np.concatenate(snapshot, axis=0)
+        if len(audio_so_far) < SAMPLE_RATE * 0.5:
+            continue
+        try:
+            with transcribe_lock:
+                partial_text = transcribe(audio_so_far, SAMPLE_RATE, config["whisper"])
+        except Exception:
+            continue
+        if partial_text:
+            set_text(partial_text)
+
+
 def start_recording():
-    global recording, frames, stream
+    global recording, frames, stream, partial_stop_event
     with state_lock:
         if recording:
             return
         recording = True
         frames = []
-    if tray_icon:
-        tray_icon.icon = ICON_RECORDING
+    set_status("Listening...")
+    set_text("")
     print("[rec] recording started")
     stream = sd.InputStream(
         samplerate=SAMPLE_RATE,
@@ -91,6 +130,10 @@ def start_recording():
         callback=audio_callback,
     )
     stream.start()
+    partial_stop_event = threading.Event()
+    threading.Thread(
+        target=partial_transcription_loop, args=(partial_stop_event,), daemon=True
+    ).start()
 
 
 def stop_recording():
@@ -99,18 +142,19 @@ def stop_recording():
         if not recording:
             return
         recording = False
+    if partial_stop_event:
+        partial_stop_event.set()
     if stream:
         stream.stop()
         stream.close()
         stream = None
-    if tray_icon:
-        tray_icon.icon = ICON_IDLE
 
     with state_lock:
         captured = list(frames)
 
     if not captured:
         print("[rec] recording stopped — no audio captured")
+        set_status(IDLE_STATUS)
         return
 
     audio = np.concatenate(captured, axis=0)
@@ -120,15 +164,18 @@ def stop_recording():
         f"{duration_s:.2f}s captured at {SAMPLE_RATE}Hz"
     )
 
-    print("[transcribe] transcribing...")
+    set_status("Transcribing...")
     try:
-        text = transcribe(audio, SAMPLE_RATE, config["whisper"])
+        with transcribe_lock:
+            text = transcribe(audio, SAMPLE_RATE, config["whisper"])
         print(f"[transcribe] result: {text!r}")
     except Exception as exc:
         print(f"[transcribe] failed: {exc}", file=sys.stderr)
+        set_status(f"Transcription failed: {exc}")
         return
 
-    print("[cleanup] cleaning up transcript...")
+    set_text(text)
+    set_status("Cleaning up...")
     try:
         cleaned = cleanup(text, config["cleanup"])
         print(f"[cleanup] result: {cleaned!r}")
@@ -137,11 +184,14 @@ def stop_recording():
         print("[cleanup] falling back to the raw transcript for injection")
         cleaned = text
 
-    print("[inject] pasting at cursor...")
+    set_text(cleaned)
+    set_status("Pasting...")
     try:
         inject(cleaned)
+        set_status(IDLE_STATUS)
     except Exception as exc:
         print(f"[inject] failed: {exc}", file=sys.stderr)
+        set_status(f"Paste failed: {exc}")
 
 
 def on_press(key):
@@ -160,22 +210,14 @@ def run_hotkey_listener():
     return listener
 
 
-def quit_app(icon, item):
-    icon.stop()
-
-
-def run_tray():
-    global tray_icon
-    tray_icon = Icon(
-        "windows-dictation",
-        ICON_IDLE,
-        "Dictation (idle)",
-        menu=Menu(MenuItem("Quit", quit_app)),
-    )
-    tray_icon.run()
+def on_close():
+    root.destroy()
+    os._exit(0)
 
 
 def main():
+    global root, status_label, text_box
+
     try:
         sd.check_input_settings(samplerate=SAMPLE_RATE, channels=1)
     except Exception as exc:
@@ -203,12 +245,24 @@ def main():
         print(
             "[main] macOS: this needs Accessibility permission granted to "
             "Terminal / your Python interpreter under System Settings > "
-            "Privacy & Security > Accessibility, or the hotkey listener will "
-            "silently receive no events."
+            "Privacy & Security > Accessibility, or the hotkey listener and "
+            "the paste keystroke will silently do nothing."
         )
 
     run_hotkey_listener()
-    run_tray()
+
+    root = tk.Tk()
+    root.title("Dictation")
+    root.geometry("480x280")
+    root.protocol("WM_DELETE_WINDOW", on_close)
+
+    status_label = tk.Label(root, text=IDLE_STATUS, font=("Segoe UI", 12))
+    status_label.pack(pady=(16, 8))
+
+    text_box = tk.Text(root, wrap="word", height=10, state="disabled")
+    text_box.pack(fill="both", expand=True, padx=12, pady=12)
+
+    root.mainloop()
 
 
 if __name__ == "__main__":

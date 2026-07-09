@@ -1,7 +1,40 @@
 # windows-dictation — Living Handover Document
 
-**Last updated:** 2026-07-09 — Steps 1–3 confirmed working end-to-end on both Windows and Mac
-**Status:** Steps 1 (hotkey + recording), 2 (transcription), and 3 (Ollama cleanup) all confirmed working on both platforms. Step 4 (clipboard + paste injection) is next.
+**Last updated:** 2026-07-09 — Step 4 built; UI reworked to a normal app window with live captions (no tray)
+**Status:** Steps 1–4 built. Step 4 (paste injection) not yet tested against real apps. Major UI rework done today per Kevin's request — needs testing on both platforms before anything further is built.
+
+---
+
+## Session 2026-07-09 (continued) — Step 4 built; UI reworked (no tray, live captions, normal window)
+
+**Step 4 built:** `inject.py` (unchanged from earlier plan) — clipboard + simulated paste, restores original clipboard after.
+
+**Then two real requirement changes from Kevin, in sequence, after seeing Step 4 work:**
+
+1. Asked about a "Transcribe File" upload feature (pick an audio file, run through the same pipeline, output to clipboard + on-screen + `.txt` file, same Ollama cleanup, simple tkinter window). **Scoped via AskUserQuestion, not yet built** — parked in favour of the next point, which Kevin raised as more urgent.
+
+2. Said the hold→release→silence→then-paste flow "isn't something I can work with" — wanted live text-as-you-speak like Windows Voice Typing / Mac Dictation. Presented two options:
+   - **(A)** Type live, continuously-updating text directly into the focused app (replicating native OS dictation) — flagged as fragile (would need to track exactly what was typed and select/replace it as more speech arrives, in whatever third-party app has focus).
+   - **(B)** A live-updating partial transcript shown in this app's own window while recording; the real paste into the focused app still happens once, cleanly, on release.
+
+   Kevin picked **B**.
+
+3. Immediately followed up: also don't want a system tray at all — just a normal, always-visible app window, on both platforms.
+
+**Both changes led to one rework**, documented in `docs/BUILD_BRIEF.md` §11:
+- Dropped `pystray` and `Pillow` entirely (no more tray icon).
+- `main.py` now opens a single `tkinter` window on the main thread: a status label (Idle → Listening → Transcribing → Cleaning up → Pasting) and a text box that shows the live partial transcript while recording, then the transcript, then the cleaned-up text, then reverts to idle after paste. Closing the window quits the app (`WM_DELETE_WINDOW` → `os._exit(0)` to guarantee the process actually ends, not just the window).
+- New background loop while recording (`partial_transcription_loop` in `main.py`): every ~1.5s, re-transcribes everything captured so far (reusing `transcribe.py` unchanged) and updates the window. A `transcribe_lock` prevents this from racing with the final post-release transcription call on the same model instance.
+- This turned out to **simplify** a real risk rather than add one: a persistent tray icon needs the main thread on macOS, and so does a Cocoa-backed tkinter window — the two would have fought over it. No tray icon means no conflict.
+- Re-transcribing the whole growing buffer every 1.5s (not true streaming ASR) is a deliberate simplicity tradeoff, fine for short dictations on this hardware.
+
+**Not yet tested at all** — this is a same-session rewrite, nothing has been run since. Needs testing from scratch on both Windows and Mac:
+1. Does the window open and show correctly?
+2. Does live partial text appear and update while holding the hotkey?
+3. Does the final paste still work correctly into a real app (Teams desktop + Teams-in-browser specifically, per `docs/BUILD_BRIEF.md` §6)?
+4. Does closing the window actually quit the app cleanly on both platforms?
+
+**Next action:** Kevin tests the reworked app end-to-end on Windows first, then Mac. Once confirmed, revisit the parked "Transcribe File" feature and Step 5 (run on login).
 
 ---
 

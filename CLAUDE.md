@@ -6,7 +6,7 @@
 - **Project:** Dictation — system-wide push-to-talk voice dictation assistant, **cross-platform: Windows and Mac**
 - **Purpose:** Hold a hotkey, speak naturally, release — cleaned-up text (fillers stripped, grammar fixed, meaning preserved) is pasted into whatever text box has focus. Built for quick Teams messages and short chat-box text. One codebase, unified behaviour on both machines — added as a requirement 2026-07-09 (originally scoped Windows-only; see `docs/BUILD_BRIEF.md` §10).
 - **Owner:** Kevin Lelitte, Manager/Director HR Systems, University of Oxford
-- **Status:** MVP in progress — Step 1 (hotkey + audio capture) built cross-platform, awaiting Kevin's test on both machines
+- **Status:** MVP in progress — Steps 1–4 built and confirmed on both platforms (Step 4 paste injection built, not yet tested against real apps); reworked to a normal app window (no system tray) with a live partial-transcript display; Step 5 (run on login) and a parked "Transcribe File" upload feature still outstanding
 - **Repo:** https://github.com/begb0037admin/windows-dictation *(name predates the cross-platform scope — flag to Kevin if a rename is wanted; not done unilaterally)*
 - **Runs on:** Kevin's Windows 11 machine (RTX 3070, 8GB VRAM) AND a Mac (Apple Silicon, confirmed) — local-only, no cloud dependencies in MVP
 
@@ -14,7 +14,7 @@
 1. This file (orientation)
 2. `AGENT_MODEL.md` and `CONSTITUTION.md` — governance and role model (cross-repo standard)
 3. `HANDOVER.md` — current state, what was just built, what's next
-4. `docs/BUILD_BRIEF.md` — the full build brief; §1–9 is the original Windows-only brief, §10 is the cross-platform amendment — both apply
+4. `docs/BUILD_BRIEF.md` — the full build brief; §1–9 original Windows-only brief, §10 cross-platform amendment, §11 UI rework (no tray, live captions) — all apply
 5. `README.md` — condensed overview
 
 Do NOT ask Kevin for a recap. HANDOVER.md is the recap.
@@ -25,11 +25,15 @@ Build the MVP checklist in `docs/BUILD_BRIEF.md` §4, in the order listed, testi
 ## Architecture
 | Component | Windows | Mac (Apple Silicon) |
 |---|---|---|
-| `main.py` | Tray app entry point, `pynput` hotkey listener (shared code, platform branches only where required) | same file |
+| `main.py` | Normal `tkinter` app window (status + live partial transcript), `pynput` hotkey listener, background partial-transcription loop while recording (shared code, platform branches only where required) | same file |
 | `transcribe.py` | faster-whisper — `small` model, `device: cuda`, `compute_type: float16` | mlx-whisper — `small` model, Metal-accelerated |
 | `cleanup.py` | Ollama local REST API (`llama3.2:3b` / `gemma2:2b`) — swap point for a cloud LLM later | same — Ollama auto-accelerates via Metal |
 | `inject.py` | Clipboard + simulated `Ctrl+V` via `pyperclip` + `pyautogui` | Clipboard + simulated `Cmd+V` via `pyperclip` + `pyautogui` |
 | `config.py` / `config.json` | Platform-keyed hotkey (`ctrl_r`) and whisper backend sections, resolved by `platform.system()` at load; shared cleanup/sample-rate/autostart settings | Platform-keyed hotkey (`alt_r`) |
+
+**No system tray.** Original design used `pystray` as a background tray utility; Kevin asked for a normal always-visible app window instead (see `docs/BUILD_BRIEF.md` §11). This also removed a real cross-platform risk: a persistent tray icon and a tkinter window both want the main thread on macOS — dropping the tray icon means tkinter cleanly owns it on both platforms.
+
+**Live captions, not live typing.** While the hotkey is held, a background thread re-transcribes everything captured so far every ~1.5s and shows it in this app's own window — pure visual feedback. The actual paste into the focused app (Teams, etc.) still only happens once, cleanly, on release. Typing live directly into a third-party app was considered and rejected as too fragile (§11).
 
 ## Key Constraints
 - Local-first: no API keys, no cloud calls in MVP. Cloud cleanup is a later config toggle.
