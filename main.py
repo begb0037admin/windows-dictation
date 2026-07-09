@@ -118,12 +118,21 @@ def stop_recording():
     )
 
 
+_last_debug_key = None
+
+
 def on_press(key):
+    global _last_debug_key
+    if key != _last_debug_key:
+        print(f"[debug] key pressed: {key!r}")
+        _last_debug_key = key
     if key == HOTKEY:
         start_recording()
 
 
 def on_release(key):
+    global _last_debug_key
+    _last_debug_key = None
     if key == HOTKEY:
         stop_recording()
 
