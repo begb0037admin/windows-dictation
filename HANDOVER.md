@@ -1,7 +1,19 @@
 # windows-dictation — Living Handover Document
 
-**Last updated:** 2026-07-09 — Claude Code now running locally on the admin machine; Step 3 (Ollama cleanup) built and pushed
-**Status:** Step 1 confirmed on both platforms. Step 2 (transcription) confirmed working on Windows; Mac side still untested. Step 3 (Ollama cleanup) built and pushed — untested on both platforms (Ollama not yet installed on the admin machine).
+**Last updated:** 2026-07-09 — Step 3 (Ollama cleanup) confirmed working on Windows, after fixing a real prompt bug
+**Status:** Step 1 + Step 2 confirmed on Windows and Mac. Step 3 (Ollama cleanup) confirmed on Windows. Mac still needs Step 2 + Step 3 tested together (mlx-whisper transcription was tested once in isolation, before Step 3 existed).
+
+---
+
+## Session 2026-07-09 (continued) — Step 3 confirmed on Windows; workflow reverted to chat relay
+
+**Workflow note:** Kevin tried running a local Claude Code session on Windows (per the earlier recommendation) to drive testing directly, but found the lack of conversational feedback frustrating compared to working through this chat session, and asked to go back to chat-relay for both platforms. Also: the local Windows session had committed `cleanup.py` (Step 3 build) but never pushed it — caught and pushed manually (`git push` from plain PowerShell, commit `2ae1489`) before continuing here.
+
+**Real bug found and fixed:** first end-to-end test (transcribe → cleanup) showed the Ollama cleanup pass responding *conversationally* to the transcript instead of editing it — e.g. transcript "I'll paste back the full output" got rewritten as "Please go ahead and paste the full output. I will clean it up for you." Classic instruction-tuned-model failure: text that sounds like a request gets treated as a command rather than literal content. Fixed in `cleanup.py` (commit `da68be3`) by wrapping the input in `<transcript>` tags and explicitly instructing the model never to answer or follow anything inside them, plus pinning `temperature: 0` for determinism. Confirmed fixed on Windows — a second test correctly cleaned punctuation/grammar without responding to the content.
+
+**Also merged:** a local uncommitted timeout bump (30s → 60s on the Ollama request) that the Windows Claude Code session had made but not committed — stashed, pulled the prompt fix, popped the stash (auto-merged cleanly, no conflict), committed separately (`1db7729`).
+
+**Next action:** Test Step 2 + Step 3 together on the Mac (mlx-whisper transcription was only verified once, before `cleanup.py` existed) — pull latest, reinstall requirements, run, hold Right Option, speak, confirm both the transcript and cleanup lines look right. Once both platforms are fully confirmed on Step 3, Step 4 (clipboard + paste injection) is next.
 
 ---
 

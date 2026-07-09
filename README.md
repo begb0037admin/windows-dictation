@@ -34,8 +34,8 @@ Local-first: free, private, no API keys. See `docs/BUILD_BRIEF.md` §8 for the o
 MVP build in progress — building `docs/BUILD_BRIEF.md` §4 checklist in order, testing each step on both machines before moving to the next.
 
 - [x] **Step 1** — Push-to-talk hotkey (Right Ctrl / Right Option) triggers recording start/stop; audio captured to memory; tray icon (grey idle / red recording). Cross-platform via `pynput`. **Confirmed working on both Windows (7.75s capture) and Mac (19.79s capture).**
-- [ ] **Step 2 (in progress)** — Transcribe: `faster-whisper` + CUDA on Windows, `mlx-whisper` on Mac. Console prints the raw transcript after each recording — awaiting Kevin's test on both machines. **Known unknown:** the Mac model repo id (`mlx-community/whisper-small-mlx` in `config.json`) hasn't been verified against what's actually published on Hugging Face — if the first run 404s on download, that repo id needs correcting.
-- [ ] Step 3 — Clean up transcript with local Ollama model
+- [x] **Step 2** — Transcribe: `faster-whisper` + CUDA on Windows, `mlx-whisper` on Mac. **Confirmed working on Windows** (accurate transcript after installing the CUDA runtime via pip — see below). Mac was verified once in isolation; needs a fresh test now that Step 3 is wired in.
+- [x] **Step 3** — Clean up the transcript via a local Ollama model (`llama3.2:3b`), strips fillers/fixes grammar while preserving meaning. **Confirmed working on Windows** after fixing a prompt bug where the model responded conversationally to request-like transcripts instead of editing them. Mac untested.
 - [ ] Step 4 — Paste cleaned text at cursor via clipboard
 - [ ] Step 5 — Run on login (optional toggle)
 
