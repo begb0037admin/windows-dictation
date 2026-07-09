@@ -89,3 +89,21 @@ Machine has an RTX 3070 — plenty for this workload. Both the transcription and
 ## 9. What to hand the coding agent
 
 Give this whole document as-is, plus: "Build the MVP checklist in section 4, in the order listed, testing each step manually before moving to the next (e.g., confirm hotkey + recording works before wiring up transcription)." That keeps the build incremental and easy to debug rather than one big untested drop.
+
+## 10. Amendment — cross-platform (Mac + Windows), added 2026-07-09
+
+Original brief scoped Windows only. Kevin confirmed after Step 1 was built that this needs to run on **both** his Windows machine (RTX 3070) and a Mac (**Apple Silicon**, confirmed) — one unified codebase, not two separate apps.
+
+**What changes from the sections above:**
+
+| Component | Section 3 original | Cross-platform revision |
+|---|---|---|
+| Global hotkey capture | `keyboard`/`pynput` | **`pynput` only.** The `keyboard` library is Windows/Linux-oriented and unreliable on macOS. `pynput` works on both. |
+| Hotkey choice | `Ctrl+Win` or `CapsLock` | **A lone modifier key** (Right Ctrl on Windows, Right Option on Mac) instead of Caps Lock. Caps Lock has OS-level toggle behaviour on both platforms that fights with push-to-talk hold detection and needs suppression, which `pynput` can't do selectively (its `suppress=True` blocks *all* system input, not just the one key). A modifier key held alone has no side effects on either OS, so no suppression is needed at all. |
+| Speech-to-text | faster-whisper (all platforms) | **Per-platform backend.** faster-whisper (CTranslate2) has no Metal/MPS acceleration — on Apple Silicon it would run CPU-only. Use faster-whisper + CUDA on Windows (unchanged, see §8) and **`mlx-whisper`** on Mac — Apple's MLX framework, Metal-accelerated, comparable latency to the Windows GPU path on M-series chips. |
+| Cleanup LLM | Ollama | **Unchanged.** Ollama runs natively accelerated on both platforms (CUDA on Windows, Metal on Apple Silicon) with no extra config. |
+| Text injection | `pyperclip` + `pyautogui`/`pywin32` | **`pyperclip` + `pyautogui`, no `pywin32`.** `pywin32` is Windows-only; `pyautogui` covers the paste keystroke on both platforms. Paste key differs: `Ctrl+V` on Windows, `Cmd+V` on Mac — detect via `platform.system()`. macOS additionally requires the app be granted **Accessibility** and **Input Monitoring** permission (System Settings → Privacy & Security) for both the hotkey listener and the paste simulation to work at all — this has no Windows equivalent and should fail with a clear message, not silently do nothing. |
+| Tray icon | `pystray` + `Pillow` | **Unchanged** — pystray supports the Windows system tray and the macOS menu bar with the same API. |
+| Config | Single `config.json` | **Platform-keyed sections** for hotkey and whisper backend (`windows` / `darwin`), auto-selected by `platform.system()` at load time, with a shared config layer for everything else (sample rate, Ollama settings, autostart). |
+
+**Still local-first, still no cloud dependency in the MVP** — this amendment is about running the same behaviour on two OSes, not about adding a server component.

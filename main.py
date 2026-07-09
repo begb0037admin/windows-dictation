@@ -1,18 +1,26 @@
 """
 Step 1 of the MVP: push-to-talk hotkey + audio capture to memory + tray icon.
+Cross-platform (Windows + macOS) via pynput and sounddevice.
 
 No transcription, cleanup, or text injection yet — those are later steps.
-Run this, hold the hotkey (default: Caps Lock), speak, release, and check
-the console for a line reporting how many samples/seconds were captured.
-Confirm that works before Step 2 (transcription) is wired up.
+Run this, hold the hotkey (Right Ctrl on Windows, Right Option on Mac by
+default), speak, release, and check the console for a line reporting how
+many samples/seconds were captured. Confirm that works before Step 2
+(transcription) is wired up.
+
+macOS note: the hotkey listener needs Accessibility permission granted to
+whatever runs this script (Terminal, or your Python interpreter) under
+System Settings > Privacy & Security > Accessibility. Without it, pynput
+silently receives no key events at all.
 """
 
+import platform
 import sys
 import threading
 
 import numpy as np
 import sounddevice as sd
-import keyboard
+from pynput import keyboard
 from pystray import Icon, Menu, MenuItem
 from PIL import Image, ImageDraw
 
@@ -20,7 +28,22 @@ from config import load_config
 
 config = load_config()
 SAMPLE_RATE = config["sample_rate"]
-HOTKEY = config["hotkey"]
+HOTKEY_NAME = config["hotkey"]
+
+
+def resolve_hotkey(name):
+    key = getattr(keyboard.Key, name, None)
+    if key is not None:
+        return key
+    if len(name) == 1:
+        return keyboard.KeyCode.from_char(name)
+    raise ValueError(
+        f"Unrecognised hotkey '{name}' — use a pynput Key name "
+        f"(e.g. 'ctrl_r', 'alt_r', 'cmd_r') or a single character"
+    )
+
+
+HOTKEY = resolve_hotkey(HOTKEY_NAME)
 
 state_lock = threading.Lock()
 recording = False
@@ -95,18 +118,20 @@ def stop_recording():
     )
 
 
-def register_hotkey():
-    try:
-        keyboard.on_press_key(HOTKEY, lambda e: start_recording(), suppress=True)
-        keyboard.on_release_key(HOTKEY, lambda e: stop_recording(), suppress=True)
-    except Exception as exc:
-        print(f"[hotkey] failed to register '{HOTKEY}': {exc}", file=sys.stderr)
-        print(
-            "[hotkey] this usually means the process needs to run as "
-            "Administrator to hook a global hotkey on Windows.",
-            file=sys.stderr,
-        )
-        sys.exit(1)
+def on_press(key):
+    if key == HOTKEY:
+        start_recording()
+
+
+def on_release(key):
+    if key == HOTKEY:
+        stop_recording()
+
+
+def run_hotkey_listener():
+    listener = keyboard.Listener(on_press=on_press, on_release=on_release)
+    listener.start()
+    return listener
 
 
 def quit_app(icon, item):
@@ -118,7 +143,7 @@ def run_tray():
     tray_icon = Icon(
         "windows-dictation",
         ICON_IDLE,
-        "Windows Dictation (idle)",
+        "Dictation (idle)",
         menu=Menu(MenuItem("Quit", quit_app)),
     )
     tray_icon.run()
@@ -129,15 +154,34 @@ def main():
         sd.check_input_settings(samplerate=SAMPLE_RATE, channels=1)
     except Exception as exc:
         print(f"[mic] no usable microphone found: {exc}", file=sys.stderr)
-        print(
-            "[mic] check Windows microphone permissions for this app "
-            "(Settings > Privacy & security > Microphone).",
-            file=sys.stderr,
-        )
+        if platform.system() == "Darwin":
+            print(
+                "[mic] grant microphone access: System Settings > Privacy & "
+                "Security > Microphone > enable for Terminal (or your Python "
+                "interpreter).",
+                file=sys.stderr,
+            )
+        else:
+            print(
+                "[mic] check Windows microphone permissions for this app "
+                "(Settings > Privacy & security > Microphone).",
+                file=sys.stderr,
+            )
         sys.exit(1)
 
-    print(f"[main] windows-dictation starting — hold '{HOTKEY}' to record")
-    register_hotkey()
+    print(
+        f"[main] windows-dictation starting on {platform.system()} — "
+        f"hold '{HOTKEY_NAME}' to record"
+    )
+    if platform.system() == "Darwin":
+        print(
+            "[main] macOS: this needs Accessibility permission granted to "
+            "Terminal / your Python interpreter under System Settings > "
+            "Privacy & Security > Accessibility, or the hotkey listener will "
+            "silently receive no events."
+        )
+
+    run_hotkey_listener()
     run_tray()
 
 

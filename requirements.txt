@@ -1,5 +1,5 @@
 sounddevice
 numpy
-keyboard
+pynput
 pystray
 Pillow

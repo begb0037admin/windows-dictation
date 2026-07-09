@@ -3,50 +3,54 @@
 > Keep this file under 200 lines. Push details to linked docs.
 
 ## Identity
-- **Project:** Windows Dictation — system-wide push-to-talk voice dictation assistant for Windows
-- **Purpose:** Hold a hotkey, speak naturally, release — cleaned-up text (fillers stripped, grammar fixed, meaning preserved) is pasted into whatever text box has focus. Built for quick Teams messages and short chat-box text.
+- **Project:** Dictation — system-wide push-to-talk voice dictation assistant, **cross-platform: Windows and Mac**
+- **Purpose:** Hold a hotkey, speak naturally, release — cleaned-up text (fillers stripped, grammar fixed, meaning preserved) is pasted into whatever text box has focus. Built for quick Teams messages and short chat-box text. One codebase, unified behaviour on both machines — added as a requirement 2026-07-09 (originally scoped Windows-only; see `docs/BUILD_BRIEF.md` §10).
 - **Owner:** Kevin Lelitte, Manager/Director HR Systems, University of Oxford
-- **Status:** New — brief written, MVP not yet started
-- **Repo:** https://github.com/begb0037admin/windows-dictation
-- **Runs on:** Kevin's Windows 11 machine (RTX 3070, 8GB VRAM) — local-only, no cloud dependencies in MVP
+- **Status:** MVP in progress — Step 1 (hotkey + audio capture) built cross-platform, awaiting Kevin's test on both machines
+- **Repo:** https://github.com/begb0037admin/windows-dictation *(name predates the cross-platform scope — flag to Kevin if a rename is wanted; not done unilaterally)*
+- **Runs on:** Kevin's Windows 11 machine (RTX 3070, 8GB VRAM) AND a Mac (Apple Silicon, confirmed) — local-only, no cloud dependencies in MVP
 
 ## Bootstrap Order
 1. This file (orientation)
 2. `AGENT_MODEL.md` and `CONSTITUTION.md` — governance and role model (cross-repo standard)
 3. `HANDOVER.md` — current state, what was just built, what's next
-4. `docs/BUILD_BRIEF.md` — the full build brief; the source of truth for scope, architecture, and MVP build order
+4. `docs/BUILD_BRIEF.md` — the full build brief; §1–9 is the original Windows-only brief, §10 is the cross-platform amendment — both apply
 5. `README.md` — condensed overview
 
 Do NOT ask Kevin for a recap. HANDOVER.md is the recap.
 
 ## Build Order
-Build the MVP checklist in `docs/BUILD_BRIEF.md` §4, in the order listed, testing each step manually before moving to the next (confirm hotkey + recording works before wiring up transcription, etc.). Incremental and debuggable — not one big untested drop.
+Build the MVP checklist in `docs/BUILD_BRIEF.md` §4, in the order listed, testing each step on **both** machines before moving to the next (confirm hotkey + recording works on Windows and Mac before wiring up transcription, etc.). Incremental and debuggable — not one big untested drop.
 
 ## Architecture
-| Component | Choice |
-|---|---|
-| `main.py` | Tray app entry point, hotkey listener |
-| `transcribe.py` | faster-whisper wrapper — `small` model, `device: cuda`, `compute_type: float16` |
-| `cleanup.py` | Ollama local REST API (`llama3.2:3b` / `gemma2:2b`) — the swap point for a cloud LLM later |
-| `inject.py` | Clipboard + simulated Ctrl+V paste |
-| `config.py` / `config.json` | Hotkey, model size, cleanup backend (local/cloud), autostart |
+| Component | Windows | Mac (Apple Silicon) |
+|---|---|---|
+| `main.py` | Tray app entry point, `pynput` hotkey listener (shared code, platform branches only where required) | same file |
+| `transcribe.py` | faster-whisper — `small` model, `device: cuda`, `compute_type: float16` | mlx-whisper — `small` model, Metal-accelerated |
+| `cleanup.py` | Ollama local REST API (`llama3.2:3b` / `gemma2:2b`) — swap point for a cloud LLM later | same — Ollama auto-accelerates via Metal |
+| `inject.py` | Clipboard + simulated `Ctrl+V` via `pyperclip` + `pyautogui` | Clipboard + simulated `Cmd+V` via `pyperclip` + `pyautogui` |
+| `config.py` / `config.json` | Platform-keyed hotkey (`ctrl_r`) and whisper backend sections, resolved by `platform.system()` at load; shared cleanup/sample-rate/autostart settings | Platform-keyed hotkey (`alt_r`) |
 
 ## Key Constraints
 - Local-first: no API keys, no cloud calls in MVP. Cloud cleanup is a later config toggle.
-- Clipboard-paste injection, NOT simulated keystrokes — Teams' web view drops simulated keystrokes. Verify paste in both Teams desktop and Teams-in-browser.
-- GPU: transcription and cleanup both run on the RTX 3070. Sanity-check with `nvidia-smi` — 0% GPU during a test dictation means silent CPU fallback.
-- Surface model-download progress on first run (faster-whisper + Ollama pull hundreds of MB) — never hang silently.
-- Fail loudly with a clear message if Windows blocks mic access — never silently record nothing.
-- Default hotkey must avoid Windows/Teams shortcut collisions and be configurable.
+- **One shared codebase, not two apps.** Platform differences are handled with `platform.system()` branches inside the same files (config-driven where possible), not separate scripts per OS.
+- `keyboard` library is dropped — unreliable on macOS. `pynput` is the only hotkey library, used on both platforms.
+- Default hotkeys are lone modifier keys (Right Ctrl on Windows, Right Option on Mac), not Caps Lock — Caps Lock has OS-level toggle behaviour that fights push-to-talk and needs per-key suppression `pynput` can't do selectively. Modifier keys held alone have no side effects, so no suppression is needed.
+- Clipboard-paste injection, NOT simulated individual keystrokes — Teams' web view drops simulated keystrokes. Verify paste in both Teams desktop and Teams-in-browser, on both OSes.
+- macOS requires Accessibility permission (hotkey listener) and Input Monitoring/Microphone permission (paste simulation, audio) granted to Terminal/the Python interpreter under System Settings → Privacy & Security — there is no Windows equivalent. Fail loudly with a clear message if these aren't granted; never silently receive no events.
+- GPU: Windows transcription/cleanup run on the RTX 3070 (sanity-check with `nvidia-smi` — 0% during a test dictation means silent CPU fallback). Mac transcription runs on Apple Silicon via MLX/Metal (mlx-whisper); Ollama cleanup auto-accelerates via Metal on Mac too.
+- Surface model-download progress on first run (faster-whisper/mlx-whisper + Ollama pull hundreds of MB to a few GB) — never hang silently.
+- Fail loudly with a clear message if the OS blocks mic access — never silently record nothing.
+- Default hotkeys must avoid OS/Teams shortcut collisions and be configurable per platform.
 
 ## Effort Level Governance
 Before any task where higher effort is warranted, signal to Kevin: what the task is, why higher effort is needed, and an explicit request to raise the effort level. Wait — do not proceed until Kevin raises it. Signal when the high-effort phase is done; Kevin decides when to return to normal. Never change effort level unilaterally. See CONSTITUTION.md Section 10 (v2.0, 2026-06-27).
 
 ## Hard Rules
 - Never commit credentials or API keys — the MVP needs none; if a cloud cleanup toggle is added later, keys live in env vars only
-- The brief (`docs/BUILD_BRIEF.md`) defines scope — do not add stretch goals (§5) before the MVP checklist (§4) is complete and working
-- Build and test one MVP checklist item at a time — Kevin confirms each step works on his Windows machine before the next is built
-- This is a local Windows app — Claude Code writes and pushes the code but cannot run or test it (no mic, no hotkey listener, no GPU in the cloud sandbox); Kevin runs and verifies on the admin machine
+- The brief (`docs/BUILD_BRIEF.md` §1–10) defines scope — do not add stretch goals (§5) before the MVP checklist (§4) is complete and working on both platforms
+- Build and test one MVP checklist item at a time — Kevin confirms each step works on **both** Windows and Mac before the next is built
+- This is a local app on two machines — Claude Code writes and pushes the code but cannot run or test it (no mic, no hotkey listener, no GPU in the cloud sandbox on either OS); Kevin runs and verifies on the admin machine and the Mac
 - Always update `HANDOVER.md` at end of session
 - All mockups and visual designs are produced as Claude Artifacts — never committed to the repository (see CONSTITUTION.md Section 11)
 

@@ -1,10 +1,20 @@
 {
-  "hotkey": "caps lock",
   "sample_rate": 16000,
+  "hotkey": {
+    "windows": "ctrl_r",
+    "darwin": "alt_r"
+  },
   "whisper": {
-    "model_size": "small",
-    "device": "cuda",
-    "compute_type": "float16"
+    "windows": {
+      "backend": "faster-whisper",
+      "model_size": "small",
+      "device": "cuda",
+      "compute_type": "float16"
+    },
+    "darwin": {
+      "backend": "mlx-whisper",
+      "model_size": "small"
+    }
   },
   "cleanup": {
     "backend": "local",
