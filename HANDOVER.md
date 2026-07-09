@@ -1,7 +1,25 @@
 # windows-dictation — Living Handover Document
 
-**Last updated:** 2026-07-09 — Step 4 built; UI reworked to a normal app window with live captions (no tray)
-**Status:** Steps 1–4 built. Step 4 (paste injection) not yet tested against real apps. Major UI rework done today per Kevin's request — needs testing on both platforms before anything further is built.
+**Last updated:** 2026-07-09 — Windows fully confirmed end-to-end with the new UI; two live-caption latency fixes along the way
+**Status:** Steps 1–4 + the window/live-caption rework all confirmed working on Windows, including a real paste into Notepad. Mac untested since the rework. Also flagged: Kevin wants to eventually package this for colleagues (see below) — deferred until the app itself is stable on both platforms.
+
+---
+
+## Session 2026-07-09 (continued) — Windows confirmed end-to-end; two live-caption iterations; packaging flagged for later
+
+**Live caption needed two rounds of tuning after the initial rework:**
+1. First test: caption updates were "really delayed" — root cause was re-transcribing the *entire* growing recording every 1.5s, so cost (and lag) grew with recording length. Fixed by bounding each call to a rolling 5s window and polling every 0.8s instead of 1.5s.
+2. Second test: now fast, but each update *overwrote* the previous text instead of accumulating — a direct side effect of only looking at a rolling window (older words fell out of the window entirely). Fixed properly: audio is split into ~5s chunks. Once a chunk reaches ~5s it's "finalized" — transcribed once, permanently appended to a running `finalized_text` string, never re-transcribed again — while only the *current* in-progress chunk keeps re-transcribing every 0.8s for the live feel. This keeps every call bounded to ~5s of audio (fast, regardless of total recording length) while the displayed text keeps the full growing transcript, not just a recent snippet. Kevin confirmed: "I like the way it works."
+
+**End-to-end confirmed on Windows (24.67s recording):** transcript accurate, cleanup **timed out** (60s) and gracefully fell back to the raw transcript exactly as designed — no crash, no lost text — and the fallback text pasted correctly into Notepad. The timeout is most likely GPU contention between faster-whisper and Ollama sharing the RTX 3070's VRAM, or Ollama reloading its model after sitting idle — not a code bug. Worth watching if it recurs frequently; if so, `OLLAMA_KEEP_ALIVE` or similar tuning could help, but not acted on now since the fallback already handles it gracefully.
+
+**Packaging/distribution flagged, deferred:** Kevin wants to give this to colleagues eventually and asked about an installer for both platforms. This is already a listed stretch goal (`docs/BUILD_BRIEF.md` §5 — PyInstaller + Inno Setup). Recommended deferring until the app is stable and tested on both platforms (packaging a moving target means repackaging repeatedly), and flagged two real open questions that packaging will force a decision on:
+1. **Ollama can't be bundled into an installer** — it's a separate background service each user has to install and pull a model for themselves, same as Kevin did on both his own machines.
+2. **GPU assumption isn't built for other users** — `config.json`'s Windows `whisper` section hardcodes `device: cuda`. Colleagues without an NVIDIA GPU need a CPU fallback (or auto-detection), which doesn't exist yet.
+
+Kevin agreed to defer packaging until the app itself is confirmed stable.
+
+**Next action:** Mac hasn't been tested since today's window/live-caption rework — needs a full retest there (window opens correctly, live caption behaves the same way, paste works, closing the window quits cleanly). Once both platforms are confirmed on the reworked app, revisit: Step 5 (run on login), the parked "Transcribe File" upload feature, and the packaging/GPU-fallback questions above.
 
 ---
 
