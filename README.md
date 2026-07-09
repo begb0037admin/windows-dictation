@@ -31,7 +31,7 @@ Local-first: free, private, no API keys. Target machine has an RTX 3070 (8GB VRA
 
 ## Status
 
-Not yet built — MVP scope and build order are defined in `docs/BUILD_BRIEF.md` §4. Build the checklist in order, testing each step manually before moving to the next.
+Not yet built — MVP scope and build order are defined in `docs/BUILD_BRIEF.md` 4. Build the checklist in order, testing each step manually before moving to the next.
 
 ## Repo structure (planned)
 
