@@ -1,16 +1,17 @@
 """
-Step 1 + 2 + 3 of the MVP: push-to-talk hotkey + audio capture + transcription
-+ Ollama cleanup pass. Cross-platform (Windows + macOS) via pynput,
-sounddevice, transcribe.py, and cleanup.py.
+Full MVP pipeline: push-to-talk hotkey + audio capture + transcription +
+Ollama cleanup + clipboard paste injection. Cross-platform (Windows + macOS)
+via pynput, sounddevice, transcribe.py, cleanup.py, and inject.py.
 
-No text injection yet — that's the next step. Hold the hotkey (Right Ctrl on
-Windows, Right Option on Mac by default), speak, release — the console
-prints the raw transcript and the cleaned-up version. Nothing is pasted yet.
+Hold the hotkey (Right Ctrl on Windows, Right Option on Mac by default),
+speak, release — cleaned-up text is pasted at the cursor in whatever text
+box has focus.
 
-macOS note: the hotkey listener needs Accessibility permission granted to
-whatever runs this script (Terminal, or your Python interpreter) under
-System Settings > Privacy & Security > Accessibility. Without it, pynput
-silently receives no key events at all.
+macOS note: the hotkey listener AND the paste injection need Accessibility
+permission granted to whatever runs this script (Terminal, or your Python
+interpreter) under System Settings > Privacy & Security > Accessibility.
+Without it, pynput silently receives no key events, and pyautogui's paste
+keystroke silently does nothing.
 """
 
 import platform
@@ -25,6 +26,7 @@ from PIL import Image, ImageDraw
 
 from cleanup import cleanup
 from config import load_config
+from inject import inject
 from transcribe import transcribe
 
 config = load_config()
@@ -132,6 +134,14 @@ def stop_recording():
         print(f"[cleanup] result: {cleaned!r}")
     except Exception as exc:
         print(f"[cleanup] failed: {exc}", file=sys.stderr)
+        print("[cleanup] falling back to the raw transcript for injection")
+        cleaned = text
+
+    print("[inject] pasting at cursor...")
+    try:
+        inject(cleaned)
+    except Exception as exc:
+        print(f"[inject] failed: {exc}", file=sys.stderr)
 
 
 def on_press(key):

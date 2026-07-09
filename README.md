@@ -34,9 +34,9 @@ Local-first: free, private, no API keys. See `docs/BUILD_BRIEF.md` §8 for the o
 MVP build in progress — building `docs/BUILD_BRIEF.md` §4 checklist in order, testing each step on both machines before moving to the next.
 
 - [x] **Step 1** — Push-to-talk hotkey (Right Ctrl / Right Option) triggers recording start/stop; audio captured to memory; tray icon (grey idle / red recording). Cross-platform via `pynput`. **Confirmed working on both Windows (7.75s capture) and Mac (19.79s capture).**
-- [x] **Step 2** — Transcribe: `faster-whisper` + CUDA on Windows, `mlx-whisper` on Mac. **Confirmed working on Windows** (accurate transcript after installing the CUDA runtime via pip — see below). Mac was verified once in isolation; needs a fresh test now that Step 3 is wired in.
-- [x] **Step 3** — Clean up the transcript via a local Ollama model (`llama3.2:3b`), strips fillers/fixes grammar while preserving meaning. **Confirmed working on Windows** after fixing a prompt bug where the model responded conversationally to request-like transcripts instead of editing them. Mac untested.
-- [ ] Step 4 — Paste cleaned text at cursor via clipboard
+- [x] **Step 2** — Transcribe: `faster-whisper` + CUDA on Windows, `mlx-whisper` on Mac. **Confirmed working on both platforms** (CUDA runtime fix on Windows; `mlx-community/whisper-small-mlx` repo id verified correct on Mac).
+- [x] **Step 3** — Clean up the transcript via a local Ollama model (`llama3.2:3b`), strips fillers/fixes grammar while preserving meaning. **Confirmed working on both platforms** — Ollama installed separately per machine. Fixed a real prompt bug along the way where the model responded conversationally to request-like transcripts instead of editing them.
+- [x] **Step 4** — Paste cleaned text at cursor via clipboard (`pyperclip` + `pyautogui`, `Ctrl+V` / `Cmd+V`); original clipboard contents restored afterward. **Built, not yet tested** — needs a real test in both the Teams desktop app and Teams-in-browser per `docs/BUILD_BRIEF.md` §6, and on both platforms.
 - [ ] Step 5 — Run on login (optional toggle)
 
 ### Running Step 1

@@ -3,5 +3,7 @@ numpy
 pynput
 pystray
 Pillow
+pyperclip
+pyautogui
 faster-whisper; sys_platform == "win32"
 mlx-whisper; sys_platform == "darwin"

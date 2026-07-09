@@ -1,7 +1,25 @@
 # windows-dictation — Living Handover Document
 
-**Last updated:** 2026-07-09 — Step 3 (Ollama cleanup) confirmed working on Windows, after fixing a real prompt bug
-**Status:** Step 1 + Step 2 confirmed on Windows and Mac. Step 3 (Ollama cleanup) confirmed on Windows. Mac still needs Step 2 + Step 3 tested together (mlx-whisper transcription was tested once in isolation, before Step 3 existed).
+**Last updated:** 2026-07-09 — Steps 1–3 confirmed working end-to-end on both Windows and Mac
+**Status:** Steps 1 (hotkey + recording), 2 (transcription), and 3 (Ollama cleanup) all confirmed working on both platforms. Step 4 (clipboard + paste injection) is next.
+
+---
+
+## Session 2026-07-09 (continued) — Mac fully confirmed through Step 3
+
+**Mac Step 2 confirmed:** the "known unknown" from the previous session — whether `mlx-community/whisper-small-mlx` was the correct Hugging Face repo id — is resolved. It downloaded fine (481MB) and produced an accurate transcript.
+
+**Mac Step 3 needed Ollama installed separately** (it's a per-machine install, not something that carries over from Windows). Installed via ollama.com download, then `ollama pull llama3.2:3b`. One false start: tested before the model pull finished, got `HTTP Error 404` from `/api/generate` — `ollama list` showed no models installed yet, confirming the model just hadn't been pulled at that point. After `ollama pull llama3.2:3b` completed, a raw `curl` test against `/api/generate` succeeded, and the full app then worked end-to-end: transcript → cleanup, cleanup pass correctly edited the text (added a missing "error", fixed nothing that didn't need fixing) without responding conversationally — the `<transcript>` tag prompt fix holds up on a second, different real transcript.
+
+**Minor known quirk, not a bug:** Whisper `small` mis-transcribed "Ollama" as "A Lama" in one test. Expected behaviour for unusual proper nouns on the `small` model — custom vocabulary/dictionary is already a listed stretch goal (`docs/BUILD_BRIEF.md` §5), not urgent for the MVP.
+
+**Both platforms are now fully verified through Step 3.**
+
+**Step 4 built:** `inject.py` — saves the current clipboard, copies the cleaned text in, simulates the paste keystroke (`Ctrl+V` Windows / `Cmd+V` Mac via `pyautogui`), then restores the original clipboard contents so dictation doesn't clobber whatever the user had copied before. Small delays around the paste to avoid a race where the OS hasn't registered the new clipboard content yet. Wired into `main.py`: on cleanup failure, falls back to injecting the raw transcript rather than losing the text entirely.
+
+**Not yet tested:** needs real-world testing in both the Teams desktop app and Teams-in-browser (`docs/BUILD_BRIEF.md` §6 flags this specifically — clipboard-paste was chosen over simulated keystrokes because Teams' web view drops them). Also untested on Mac (same Accessibility permission that's needed for the hotkey listener is also needed for `pyautogui`'s paste keystroke to actually land).
+
+**Workflow note:** back on chat-relay for both platforms per Kevin's preference (tried a local Claude Code session on Windows; found the lack of conversational feedback harder to work with than this chat, reverted).
 
 ---
 
