@@ -12,10 +12,12 @@
 
 ## Bootstrap Order
 1. This file (orientation)
-2. `docs/BUILD_BRIEF.md` — the full build brief; the source of truth for scope, architecture, and build order
-3. `README.md` — condensed overview
+2. `AGENT_MODEL.md` and `CONSTITUTION.md` — governance and role model (cross-repo standard)
+3. `HANDOVER.md` — current state, what was just built, what's next
+4. `docs/BUILD_BRIEF.md` — the full build brief; the source of truth for scope, architecture, and MVP build order
+5. `README.md` — condensed overview
 
-Do NOT ask Kevin for a recap. The brief is the recap.
+Do NOT ask Kevin for a recap. HANDOVER.md is the recap.
 
 ## Build Order
 Build the MVP checklist in `docs/BUILD_BRIEF.md` §4, in the order listed, testing each step manually before moving to the next (confirm hotkey + recording works before wiring up transcription, etc.). Incremental and debuggable — not one big untested drop.
@@ -43,6 +45,9 @@ Before any task where higher effort is warranted, signal to Kevin: what the task
 ## Hard Rules
 - Never commit credentials or API keys — the MVP needs none; if a cloud cleanup toggle is added later, keys live in env vars only
 - The brief (`docs/BUILD_BRIEF.md`) defines scope — do not add stretch goals (§5) before the MVP checklist (§4) is complete and working
+- Build and test one MVP checklist item at a time — Kevin confirms each step works on his Windows machine before the next is built
+- This is a local Windows app — Claude Code writes and pushes the code but cannot run or test it (no mic, no hotkey listener, no GPU in the cloud sandbox); Kevin runs and verifies on the admin machine
+- Always update `HANDOVER.md` at end of session
 - All mockups and visual designs are produced as Claude Artifacts — never committed to the repository (see CONSTITUTION.md Section 11)
 
 ## Branch and Merge Protocol

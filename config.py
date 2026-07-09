@@ -1,0 +1,31 @@
+import json
+from pathlib import Path
+
+CONFIG_PATH = Path(__file__).parent / "config.json"
+
+DEFAULTS = {
+    "hotkey": "caps lock",
+    "sample_rate": 16000,
+    "whisper": {
+        "model_size": "small",
+        "device": "cuda",
+        "compute_type": "float16",
+    },
+    "cleanup": {
+        "backend": "local",
+        "ollama_model": "llama3.2:3b",
+        "ollama_url": "http://localhost:11434/api/generate",
+    },
+    "autostart": False,
+}
+
+
+def load_config():
+    if not CONFIG_PATH.exists():
+        CONFIG_PATH.write_text(json.dumps(DEFAULTS, indent=2))
+        return dict(DEFAULTS)
+    with open(CONFIG_PATH, "r") as f:
+        config = json.load(f)
+    merged = dict(DEFAULTS)
+    merged.update(config)
+    return merged

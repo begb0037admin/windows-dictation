@@ -31,17 +31,37 @@ Local-first: free, private, no API keys. Target machine has an RTX 3070 (8GB VRA
 
 ## Status
 
-Not yet built — MVP scope and build order are defined in `docs/BUILD_BRIEF.md` 4. Build the checklist in order, testing each step manually before moving to the next.
+MVP build in progress — building `docs/BUILD_BRIEF.md` §4 checklist in order, testing each step on Kevin's Windows machine before moving to the next.
 
-## Repo structure (planned)
+- [x] **Step 1** — Push-to-talk hotkey (Caps Lock) triggers recording start/stop; audio captured to memory; tray icon (grey idle / red recording)
+- [ ] Step 2 — Transcribe with faster-whisper
+- [ ] Step 3 — Clean up transcript with local Ollama model
+- [ ] Step 4 — Paste cleaned text at cursor via clipboard
+- [ ] Step 5 — Run on login (optional toggle)
+
+### Running Step 1
 
 ```
-main.py           # tray app entry point, hotkey listener
-transcribe.py     # faster-whisper wrapper
-cleanup.py        # Ollama call + de-um-ify/grammar prompt (cloud swap point)
-inject.py         # clipboard + paste simulation
+pip install -r requirements.txt
+python main.py
+```
+
+Hold **Caps Lock**, speak, release. The console prints how many seconds of audio were captured — nothing is transcribed yet. A tray icon shows idle (grey) / recording (red) state; right-click to Quit.
+
+On Windows, global hotkey hooking via the `keyboard` library usually requires running the terminal **as Administrator**. If the mic can't be opened, check Settings → Privacy & security → Microphone and allow desktop apps.
+
+Hotkey and sample rate are configurable in `config.json`.
+
+## Repo structure
+
+```
+main.py           # tray app entry point, hotkey listener, audio capture (Step 1 — done)
 config.py         # loads config.json / defaults
 config.json
 requirements.txt
+transcribe.py     # faster-whisper wrapper (Step 2 — not yet built)
+cleanup.py        # Ollama call + de-um-ify/grammar prompt (Step 3 — not yet built)
+inject.py         # clipboard + paste simulation (Step 4 — not yet built)
 docs/BUILD_BRIEF.md
+CLAUDE.md / AGENT_MODEL.md / CONSTITUTION.md / HANDOVER.md   # governance stack
 ```
